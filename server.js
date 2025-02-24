@@ -64,7 +64,17 @@ app.use(
 )
 app.use(morgan("dev"))
 app.use(expressXssSanitizer.xss())
-app.use(mongoSanitize())
+
+// Modified mongoSanitize with proper configuration to avoid the read-only error
+app.use(
+  mongoSanitize({
+    replaceWith: "_",
+    onSanitize: ({ req, key }) => {
+      console.warn(`Request sanitized for key: ${key}`)
+    },
+  })
+)
+
 app.use(compression())
 
 // Test route
