@@ -27,24 +27,39 @@ checkEmailConfig().catch((err) => {
   )
 })
 
-// Get frontend URL with fallback
-const frontendUrl = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.replace(/\/$/, "")
-  : "*"
+// Set up allowed origins for CORS
+const allowedOrigins = [
+  "https://globalsportinnovations.com",
+  "http://localhost:3000",
+  "http://localhost:5173", // Vite's default port
+  process.env.FRONTEND_URL, // Your environment variable if set
+].filter(Boolean) // Remove any undefined entries
 
-// Middleware
-app.use(express.json({ limit: "10kb" }))
-app.use(express.urlencoded({ extended: true, limit: "10kb" }))
+console.log("CORS allowed origins:", allowedOrigins)
 
-// CORS Configuration with frontend URL
+// CORS Configuration with multiple origins
 app.use(
   cors({
-    origin: frontendUrl,
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl requests)
+      if (!origin) return callback(null, true)
+
+      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+        callback(null, true)
+      } else {
+        console.log("CORS blocked origin:", origin)
+        callback(new Error("Not allowed by CORS"))
+      }
+    },
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 )
+
+// Middleware
+app.use(express.json({ limit: "10kb" }))
+app.use(express.urlencoded({ extended: true, limit: "10kb" }))
 
 // Security middleware
 app.use(
@@ -55,7 +70,7 @@ app.use(
         scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", frontendUrl],
+        connectSrc: ["'self'", ...allowedOrigins],
       },
     },
     crossOriginEmbedderPolicy: false,
